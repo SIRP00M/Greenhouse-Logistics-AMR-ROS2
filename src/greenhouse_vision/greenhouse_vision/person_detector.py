@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import time
+from pathlib import Path
 from typing import Optional
 
 import cv2
@@ -21,6 +22,7 @@ class PersonDetector(Node):
         self.declare_parameter("model_path", "yolo11n.pt")
         self.declare_parameter("confidence_threshold", 0.40)
         self.declare_parameter("image_size", 640)
+        self.declare_parameter("ncnn_threads", 4)
 
         model_path = (
             self.get_parameter("model_path")
@@ -39,6 +41,25 @@ class PersonDetector(Node):
             .get_parameter_value()
             .integer_value
         )
+
+        self.ncnn_threads = (
+            self.get_parameter("ncnn_threads")
+            .get_parameter_value()
+            .integer_value
+        )
+
+        if self.ncnn_threads < 1:
+            raise ValueError("ncnn_threads must be at least 1")
+
+        model_directory = Path(model_path)
+
+        self.using_ncnn = (
+            model_directory.is_dir()
+            and (model_directory / "model.ncnn.param").is_file()
+            and (model_directory / "model.ncnn.bin").is_file()
+        )
+
+        self.ncnn_threads_configured = False
 
         self.bridge = CvBridge()
 
@@ -72,6 +93,35 @@ class PersonDetector(Node):
         self.get_logger().info("Publishing: /vision/debug_image")
         self.get_logger().info("Publishing: /person_detection")
 
+        if self.using_ncnn:
+            self.get_logger().info(
+                f"NCNN runtime detected. Requested threads: "
+                f"{self.ncnn_threads}"
+            )
+
+    def configure_ncnn_threads(self) -> None:
+        if not self.using_ncnn or self.ncnn_threads_configured:
+            return
+
+        try:
+            predictor = self.model.predictor
+            auto_backend = predictor.model
+            ncnn_backend = auto_backend.backend
+            network = ncnn_backend.net
+
+            network.opt.num_threads = self.ncnn_threads
+            self.ncnn_threads_configured = True
+
+            self.get_logger().info(
+                f"NCNN CPU threads configured: {self.ncnn_threads}"
+            )
+
+        except (AttributeError, RuntimeError) as error:
+            self.ncnn_threads_configured = True
+            self.get_logger().warning(
+                f"Could not configure NCNN threads: {error}"
+            )
+
     def image_callback(self, image_message: Image) -> None:
         try:
             frame = self.bridge.imgmsg_to_cv2(
@@ -99,6 +149,10 @@ class PersonDetector(Node):
             return
 
         inference_elapsed = time.perf_counter() - inference_begin
+
+        # Ultralytics creates the NCNN backend during the first prediction.
+        # The configured thread count is used from the next frame onward.
+        self.configure_ncnn_threads()
 
         debug_frame = frame.copy()
         detection_message = PersonDetection()
