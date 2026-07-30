@@ -10,10 +10,6 @@ from pathlib import Path
 import cv2
 from ultralytics import YOLO
 
-# ป้องกัน OpenCV สร้าง worker threads เพิ่มจนแย่ง CPU กับ NCNN
-cv2.setNumThreads(1)
-cv2.ocl.setUseOpenCL(False)
-
 
 class LatestFrameCamera:
     """
@@ -39,13 +35,9 @@ class LatestFrameCamera:
         self.pipeline = (
             f"v4l2src device={device} ! "
             f"image/jpeg,width={width},height={height},framerate={fps}/1 ! "
-            "queue max-size-buffers=2 max-size-bytes=0 "
-            "max-size-time=0 leaky=downstream ! "
             "jpegdec ! "
             "videoconvert ! "
             "video/x-raw,format=BGR ! "
-            "queue max-size-buffers=1 max-size-bytes=0 "
-            "max-size-time=0 leaky=downstream ! "
             "appsink drop=true max-buffers=1 sync=false"
         )
 
@@ -246,7 +238,7 @@ def main() -> int:
         )
 
         print(f"[MODEL] Loading {model_path}")
-        model = YOLO(str(model_path), task="detect")
+        model = YOLO(str(model_path))
 
         print(
             f"[MODEL] Warm-up: {args.warmup} runs "
@@ -480,22 +472,10 @@ def main() -> int:
 
         print("=" * 72)
 
-        required_fps = (
-            args.target_fps * 0.98
-            if args.target_fps > 0
-            else 10.0
-        )
-
-        if average_detector_fps >= required_fps:
-            print(
-                f"[PASS] Live detection reaches the target "
-                f"({average_detector_fps:.3f} FPS)."
-            )
+        if average_detector_fps >= 10.0:
+            print("[PASS] Live detection reaches the 10 FPS target.")
         else:
-            print(
-                f"[FAIL] Live detection is below the target "
-                f"({average_detector_fps:.3f} FPS)."
-            )
+            print("[FAIL] Live detection is below the 10 FPS target.")
 
         return 0
 
