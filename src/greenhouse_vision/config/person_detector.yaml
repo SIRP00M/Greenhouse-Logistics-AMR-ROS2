@@ -9,7 +9,7 @@ person_detector:
 
     imgsz: 320
     confidence: 0.35
-    target_fps: 10.0
+    target_fps: 11.0
     warmup_runs: 60
 
     # largest หรือ highest_confidence

@@ -10,7 +10,6 @@ os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 
-import threading
 import time
 from collections import deque
 from pathlib import Path
@@ -174,15 +173,12 @@ class PersonDetectorNode(Node):
 
         self.last_log_time = time.perf_counter()
 
-        self.detection_stop_event = threading.Event()
+        timer_period = 1.0 / self.target_fps
 
-        self.detection_thread = threading.Thread(
-            target=self._detection_loop,
-            name="person-detection-worker",
-            daemon=True,
+        self.timer = self.create_timer(
+            timer_period,
+            self.detect_once,
         )
-
-        self.detection_thread.start()
 
         self.get_logger().info(
             "Person detector started: "
@@ -191,48 +187,6 @@ class PersonDetectorNode(Node):
             f"YOLO={self.imgsz}, "
             f"target={self.target_fps:.1f}FPS"
         )
-
-    def _detection_loop(self) -> None:
-        """
-        รัน Person Detection ด้วยจังหวะเวลาของตัวเอง
-
-        ไม่ใช้ ROS timer callback สำหรับงาน inference
-        เพื่อไม่ให้ executor jitter ลดอัตรา Publish
-        """
-
-        target_period = 1.0 / self.target_fps
-        next_detection_time = time.perf_counter()
-
-        while (
-            not self.detection_stop_event.is_set()
-            and rclpy.ok()
-        ):
-            now = time.perf_counter()
-
-            if now < next_detection_time:
-                self.detection_stop_event.wait(
-                    timeout=next_detection_time - now
-                )
-                continue
-
-            try:
-                self.detect_once()
-
-            except Exception as error:
-                self.get_logger().error(
-                    f"Detection worker error: {error}"
-                )
-
-                self.detection_stop_event.wait(timeout=0.1)
-
-            next_detection_time += target_period
-
-            after_detection = time.perf_counter()
-
-            # ถ้า inference ใช้เวลานานจนเลยรอบ
-            # ให้กลับมาใช้เวลาปัจจุบัน ไม่สะสมงานย้อนหลัง
-            if next_detection_time < after_detection:
-                next_detection_time = after_detection
 
     def _calculate_detector_fps(self) -> float:
         if len(self.detector_timestamps) < 2:
@@ -407,15 +361,6 @@ class PersonDetectorNode(Node):
             self.last_log_time = now
 
     def destroy_node(self):
-        if hasattr(self, "detection_stop_event"):
-            self.detection_stop_event.set()
-
-        if (
-            hasattr(self, "detection_thread")
-            and self.detection_thread is not None
-        ):
-            self.detection_thread.join(timeout=3.0)
-
         if hasattr(self, "camera") and self.camera is not None:
             self.camera.stop()
 
