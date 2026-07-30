@@ -268,9 +268,6 @@ def main() -> int:
             else 0.0
         )
 
-        # ไม่นับเฟรมที่กล้องรับระหว่าง model warm-up
-        capture_start_total = camera.total_frames
-
         test_start = time.perf_counter()
         next_detection_time = test_start
         last_report_time = test_start
@@ -455,12 +452,8 @@ def main() -> int:
             else 0.0
         )
 
-        measured_capture_frames = (
-            camera.total_frames - capture_start_total
-        )
-
         average_capture_fps = (
-            measured_capture_frames / total_elapsed
+            camera.total_frames / total_elapsed
             if total_elapsed > 0
             else 0.0
         )
@@ -470,7 +463,7 @@ def main() -> int:
         print("LIVE BENCHMARK RESULT")
         print("=" * 72)
         print(f"Test duration          : {total_elapsed:8.2f} seconds")
-        print(f"Captured frames        : {measured_capture_frames:8d}")
+        print(f"Captured frames        : {camera.total_frames:8d}")
         print(f"Detector runs          : {detector_total:8d}")
         print(f"Duplicate skips        : {duplicate_skips:8d}")
         print("-" * 72)
