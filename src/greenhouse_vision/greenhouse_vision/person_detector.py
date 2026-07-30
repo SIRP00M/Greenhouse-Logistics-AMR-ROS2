@@ -4,7 +4,6 @@ import time
 from typing import Optional
 
 import cv2
-import numpy as np
 import rclpy
 from cv_bridge import CvBridge
 from rclpy.node import Node
@@ -121,7 +120,7 @@ class PersonDetector(Node):
                 coordinates = box.xyxy[0].cpu().numpy()
                 confidence = float(box.conf[0].cpu().item())
 
-                x1, y1, x2, y2 = coordinates.astype(np.int32)
+                x1, y1, x2, y2 = map(int, coordinates.tolist())
 
                 x1 = max(0, min(x1, frame.shape[1] - 1))
                 y1 = max(0, min(y1, frame.shape[0] - 1))
@@ -195,11 +194,11 @@ class PersonDetector(Node):
             center_x, center_y, width, height, confidence = best_detection
 
             detection_message.detected = True
-            detection_message.confidence = confidence
-            detection_message.center_x = center_x
-            detection_message.center_y = center_y
-            detection_message.width = width
-            detection_message.height = height
+            detection_message.confidence = float(confidence)
+            detection_message.center_x = int(center_x)
+            detection_message.center_y = int(center_y)
+            detection_message.width = int(width)
+            detection_message.height = int(height)
 
         self.detection_publisher.publish(detection_message)
 
