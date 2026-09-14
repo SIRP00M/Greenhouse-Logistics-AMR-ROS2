@@ -20,4 +20,6 @@
     <build_type>ament_python</build_type>
   </export>
   <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
 </package>

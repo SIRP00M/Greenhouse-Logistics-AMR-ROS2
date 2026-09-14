@@ -54,7 +54,9 @@ setup(
                 "person_detector = "
                 "greenhouse_vision.person_detector_node:main",
             "person_follower = "
-                "greenhouse_vision.person_follower_node:main"
+                "greenhouse_vision.person_follower_node:main",
+            "person_follower_lidar = "
+                "greenhouse_vision.person_follower_lidar_node:main"
             ),
         ],
     },
