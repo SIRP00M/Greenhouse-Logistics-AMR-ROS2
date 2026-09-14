@@ -41,7 +41,7 @@ class PersonDetectorNode(Node):
             "Greenhouse-Logistics-AMR-ROS2/"
             "yolo11n_ncnn_model",
         )
-        self.declare_parameter("device", "/dev/video0")
+        self.declare_parameter("device", "/dev/video2")
         self.declare_parameter("width", 640)
         self.declare_parameter("height", 480)
         self.declare_parameter("camera_fps", 30)

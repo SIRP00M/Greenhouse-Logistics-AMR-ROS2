@@ -34,6 +34,7 @@ setup(
     entry_points={
         'console_scripts': [
             'serial_bridge = pico_motor_bridge.serial_bridge:main',
+	    'encoder_velocity = pico_motor_bridge.encoder_velocity:main',
         ],
     },
 )
